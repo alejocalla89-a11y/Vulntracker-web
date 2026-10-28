@@ -201,7 +201,7 @@ def dashboard():
             WHERE p.asignado_a = ?
             ORDER BY p.id DESC LIMIT 5
         """
-        recientes = db.execute(query_recientes).fetchall()
+        recientes = db.execute(query\_recientes, (user\_id,)).fetchall()
 
         auditorias_recientes = db.execute("""
             SELECT a.id, a.nombre_proyecto, a.nombre_archivo, a.fecha_escaneo, 
