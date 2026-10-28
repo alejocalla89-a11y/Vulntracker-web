@@ -1,0 +1,125 @@
+{% extends "base.html" %}
+
+{% block title %}Informe de Auditoría #{{ auditoria.id }}{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4 pb-2 border-bottom">
+    <div>
+        <div class="d-flex align-items-center gap-2">
+            <h2 class="h3 fw-bold text-dark mb-0">Informe Técnico de Auditoría: {{ auditoria.nombre_proyecto }}</h2>
+            <span class="badge {% if auditoria.indice_riesgo > 60 %}bg-danger{% elif auditoria.indice_riesgo > 30 %}bg-warning text-dark{% else %}bg-success{% endif %} fs-6">
+                Riesgo: {{ auditoria.indice_riesgo }}%
+            </span>
+        </div>
+        <p class="text-muted small mb-0">
+            Archivo analizado: <code>{{ auditoria.nombre_archivo }}</code> | Fecha: {{ auditoria.fecha_escaneo }} | Auditor: {{ auditoria.auditor or 'Sistema' }}
+            {% if auditoria.activo_nombre %} | Servidor Asociado: <strong class="text-primary">{{ auditoria.activo_nombre }} ({{ auditoria.activo_ip }})</strong>{% endif %}
+        </p>
+    </div>
+    <div class="d-flex gap-2">
+        <a href="{{ url_for('auditorias') }}" class="btn btn-outline-secondary btn-sm">
+            <i class="fa-solid fa-arrow-left me-1"></i> Volver a Auditorías
+        </a>
+        <button onclick="window.print()" class="btn btn-outline-dark btn-sm">
+            <i class="fa-solid fa-print me-1"></i> Imprimir / Exportar
+        </button>
+    </div>
+</div>
+
+<!-- Resumen Estadístico del Análisis -->
+<div class="row g-3 mb-4">
+    <div class="col-md-3">
+        <div class="card border-0 bg-white shadow-sm p-3 border-start border-4 border-primary">
+            <div class="text-muted small text-uppercase fw-bold">Archivos Procesados</div>
+            <div class="h3 fw-bold mb-0 text-dark">{{ auditoria.archivos_analizados }}</div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card border-0 bg-white shadow-sm p-3 border-start border-4 border-danger">
+            <div class="text-muted small text-uppercase fw-bold">Vulnerabilidades Críticas</div>
+            <div class="h3 fw-bold mb-0 text-danger">{{ auditoria.criticas }}</div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card border-0 bg-white shadow-sm p-3 border-start border-4 border-warning">
+            <div class="text-muted small text-uppercase fw-bold">Vulnerabilidades Altas</div>
+            <div class="h3 fw-bold mb-0 text-warning">{{ auditoria.altas }}</div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card border-0 bg-white shadow-sm p-3 border-start border-4 border-info">
+            <div class="text-muted small text-uppercase fw-bold">Medias / Bajas</div>
+            <div class="h3 fw-bold mb-0 text-info">{{ auditoria.medias + auditoria.bajas }}</div>
+        </div>
+    </div>
+</div>
+
+<!-- Lista Detallada de Hallazgos -->
+<div class="card shadow-sm border-0 mb-4">
+    <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center">
+        <h6 class="m-0 fw-bold text-dark">
+            <i class="fa-solid fa-bug-slash me-2 text-danger"></i>Hallazgos de Seguridad Identificados ({{ hallazgos|length }})
+        </h6>
+        <span class="small text-muted">Ordenados por criticidad CVSS descendente</span>
+    </div>
+    <div class="card-body p-0">
+        {% if hallazgos %}
+        <div class="accordion accordion-flush" id="accordionHallazgos">
+            {% for h in hallazgos %}
+            <div class="accordion-item">
+                <h2 class="accordion-header" id="heading{{ h.id }}">
+                    <button class="accordion-button {% if not loop.first %}collapsed{% endif %}" type="button" data-bs-toggle="collapse" data-bs-target="#collapse{{ h.id }}" aria-expanded="{% if loop.first %}true{% else %}false{% endif %}">
+                        <div class="d-flex justify-content-between align-items-center w-100 pe-3">
+                            <div>
+                                <span class="badge {% if h.severidad == 'Crítica' %}bg-danger{% elif h.severidad == 'Alta' %}bg-warning text-dark{% elif h.severidad == 'Media' %}bg-info text-dark{% else %}bg-secondary{% endif %} me-2">
+                                    {{ h.severidad }} (CVSS {{ h.cvss_score }})
+                                </span>
+                                <span class="badge bg-light text-dark border me-2 font-monospace">{{ h.cve_id }}</span>
+                                <strong class="text-dark">{{ h.titulo }}</strong>
+                            </div>
+                            <div class="text-muted small font-monospace">
+                                <i class="fa-solid fa-file-code me-1"></i> {{ h.archivo }}{% if h.linea %}:{{ h.linea }}{% endif %}
+                            </div>
+                        </div>
+                    </button>
+                </h2>
+                <div id="collapse{{ h.id }}" class="accordion-collapse collapse {% if loop.first %}show{% endif %}" data-bs-parent="#accordionHallazgos">
+                    <div class="accordion-body bg-light">
+                        <div class="row g-3">
+                            <div class="col-md-7">
+                                <div class="fw-semibold text-secondary small text-uppercase mb-1">Descripción del Fallo</div>
+                                <p class="text-dark mb-3">{{ h.descripcion }}</p>
+
+                                {% if h.codigo_fragmento %}
+                                <div class="fw-semibold text-secondary small text-uppercase mb-1">Evidencia / Código Detectado</div>
+                                <pre class="bg-dark text-warning p-3 rounded small font-monospace mb-0"><code>{{ h.codigo_fragmento }}</code></pre>
+                                {% endif %}
+                            </div>
+                            <div class="col-md-5">
+                                <div class="card border-0 shadow-sm bg-white p-3 h-100">
+                                    <div class="fw-bold text-success mb-2">
+                                        <i class="fa-solid fa-circle-check me-1"></i> Remediación Técnica Recomendada:
+                                    </div>
+                                    <p class="small text-muted mb-3">{{ h.solucion }}</p>
+                                    <div class="mt-auto pt-2 border-top">
+                                        <div class="small text-muted"><strong>Tipo de Motor:</strong> {{ h.tipo }}</div>
+                                        <div class="small text-muted"><strong>Ubicación:</strong> <code>{{ h.archivo }}</code></div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <div class="p-5 text-center text-success">
+            <i class="fa-solid fa-shield-heart fs-1 mb-3"></i>
+            <h5 class="fw-bold">¡Código Limpio! No se detectaron vulnerabilidades conocidas.</h5>
+            <p class="text-muted mb-0">El proyecto cumple con las directivas de seguridad básicas y no incluye dependencias con CVEs críticos.</p>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

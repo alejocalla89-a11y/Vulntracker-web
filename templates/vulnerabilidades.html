@@ -1,0 +1,108 @@
+{% extends "base.html" %}
+
+{% block title %}Catálogo de Vulnerabilidades (CVE){% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4 pb-2 border-bottom">
+    <div>
+        <h2 class="h3 fw-bold text-dark mb-0">Catálogo de Vulnerabilidades y Firmas de Seguridad</h2>
+        <p class="text-muted small mb-0">Base de conocimiento de amenazas, debilidades CWE y vectores de ataque clasificados por puntuación CVSS.</p>
+    </div>
+    <button class="btn btn-primary shadow-sm" data-bs-toggle="modal" data-bs-target="#modalNuevaVuln">
+        <i class="fa-solid fa-plus-circle me-1"></i> Registrar Firma CVE
+    </button>
+</div>
+
+<!-- Tabla de Vulnerabilidades -->
+<div class="card shadow-sm border-0">
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th>Identificador CVE / CWE</th>
+                        <th>Título y Descripción</th>
+                        <th>Puntuación CVSS v3.1</th>
+                        <th>Severidad</th>
+                        <th>Remediación Sugerida</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for v in vulnerabilidades %}
+                    <tr>
+                        <td class="font-monospace fw-bold text-dark">
+                            <div class="badge bg-dark fs-7">{{ v.cve_id }}</div>
+                        </td>
+                        <td>
+                            <div class="fw-bold text-dark">{{ v.titulo }}</div>
+                            <small class="text-muted text-wrap d-block" style="max-width: 450px;">{{ v.descripcion }}</small>
+                        </td>
+                        <td>
+                            <div class="d-flex align-items-center gap-2">
+                                <span class="badge {% if v.cvss_score >= 9.0 %}bg-danger{% elif v.cvss_score >= 7.0 %}bg-warning text-dark{% elif v.cvss_score >= 4.0 %}bg-info text-dark{% else %}bg-secondary{% endif %} fs-6">
+                                    {{ v.cvss_score }}
+                                </span>
+                            </div>
+                        </td>
+                        <td>
+                            <span class="badge {% if v.severidad == 'Crítica' %}bg-danger{% elif v.severidad == 'Alta' %}bg-warning text-dark{% elif v.severidad == 'Media' %}bg-info text-dark{% else %}bg-secondary{% endif %}">
+                                {{ v.severidad }}
+                            </span>
+                        </td>
+                        <td>
+                            <small class="text-success fw-semibold"><i class="fa-solid fa-check me-1"></i> {{ v.solucion_sugerida }}</small>
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="5" class="text-center py-4 text-muted">No existen vulnerabilidades registradas en el catálogo.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Registrar Vulnerabilidad -->
+<div class="modal fade" id="modalNuevaVuln" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content border-0 shadow">
+            <div class="modal-header bg-dark text-white">
+                <h5 class="modal-title fw-bold"><i class="fa-solid fa-bug me-2 text-danger"></i>Registrar Vulnerabilidad en Catálogo</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form action="{{ url_for('vulnerabilidades') }}" method="POST">
+                <div class="modal-body">
+                    <div class="row g-3 mb-3">
+                        <div class="col-md-6">
+                            <label class="form-label fw-semibold">Identificador CVE / CWE <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control font-monospace" name="cve_id" placeholder="CVE-2024-XXXX o CWE-89" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label fw-semibold">Puntuación Base CVSS (0.0 a 10.0) <span class="text-danger">*</span></label>
+                            <input type="number" step="0.1" min="0.0" max="10.0" class="form-control" name="cvss_score" placeholder="9.8" required>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold">Título de la Vulnerabilidad <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control" name="titulo" placeholder="Ej. Ejecución Remota de Código en Componente X" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold">Descripción Técnica <span class="text-danger">*</span></label>
+                        <textarea class="form-control" name="descripcion" rows="3" placeholder="Detalle técnico de la condición de vulnerabilidad..." required></textarea>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold">Solución o Procedimiento de Mitigación <span class="text-danger">*</span></label>
+                        <textarea class="form-control" name="solucion_sugerida" rows="2" placeholder="Acción de remediación requerida..." required></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer bg-light">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-primary fw-semibold">Guardar en Catálogo</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

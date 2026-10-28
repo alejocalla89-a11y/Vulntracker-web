@@ -1,0 +1,62 @@
+:root {
+    --vt-font-sans: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+}
+
+body {
+    font-family: var(--vt-font-sans);
+    color: #2b3035;
+    background-color: #f4f6f9;
+}
+
+.navbar-brand .tracking-tight {
+    letter-spacing: -0.5px;
+}
+
+.fs-7 {
+    font-size: 0.8rem;
+}
+
+.fs-8 {
+    font-size: 0.72rem;
+}
+
+.card {
+    transition: transform 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
+}
+
+.card:hover {
+    box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.08) !important;
+}
+
+.table > :not(caption) > * > * {
+    padding: 0.85rem 0.9rem;
+}
+
+.accordion-button:not(.collapsed) {
+    background-color: #f8f9fa;
+    color: #0d6efd;
+    box-shadow: none;
+}
+
+.accordion-button:focus {
+    box-shadow: none;
+    border-color: rgba(0,0,0,.125);
+}
+
+pre {
+    border-radius: 6px;
+    font-family: 'SFMono-Regular', Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+}
+
+@media print {
+    .navbar, .footer, .btn, form, .modal {
+        display: none !important;
+    }
+    body {
+        background: white;
+    }
+    .card {
+        border: 1px solid #ccc !important;
+        box-shadow: none !important;
+    }
+}

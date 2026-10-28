@@ -1,0 +1,139 @@
+{% extends "base.html" %}
+
+{% block title %}Auditoría Automática de Proyectos{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4 pb-2 border-bottom">
+    <div>
+        <h2 class="h3 fw-bold text-dark mb-0">Módulo de Auditoría de Código y Dependencias</h2>
+        <p class="text-muted small mb-0">Carga repositorios o archivos de código para escaneo estático (SAST) y análisis de vulnerabilidades en librerías (SCA).</p>
+    </div>
+    <div>
+        {% if is_admin %}
+        <span class="badge bg-danger shadow-sm p-2"><i class="fa-solid fa-eye me-1"></i> Vista Global Administrador (Todos los Proyectos)</span>
+        {% else %}
+        <span class="badge bg-primary shadow-sm p-2"><i class="fa-solid fa-lock me-1"></i> Proyectos Privados de {{ session.get('nombre') }}</span>
+        {% endif %}
+    </div>
+</div>
+
+<div class="row g-4 mb-4">
+    <!-- Formulario de Subida y Análisis -->
+    <div class="col-lg-5">
+        <div class="card shadow-sm border-0 h-100">
+            <div class="card-header bg-dark text-white py-3 d-flex justify-content-between align-items-center">
+                <h6 class="m-0 fw-bold"><i class="fa-solid fa-cloud-arrow-up me-2 text-warning"></i>Ejecutar Nuevo Escaneo</h6>
+                <span class="badge bg-secondary font-monospace" style="font-size:0.7rem;">{{ session.get('email') }}</span>
+            </div>
+            <div class="card-body">
+                <form action="{{ url_for('escanear_proyecto') }}" method="POST" enctype="multipart/form-data">
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold">Nombre del Proyecto o Módulo <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control" name="nombre_proyecto" placeholder="Ej. Portal de Facturación de {{ session.get('nombre') }}" required>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold">Vincular a un Servidor / Activo (Opcional)</label>
+                        <select class="form-select" name="activo_id">
+                            <option value="">-- Sin vincular a servidor específico --</option>
+                            {% for a in activos %}
+                            <option value="{{ a.id }}">{{ a.nombre }} ({{ a.ip }})</option>
+                            {% endfor %}
+                        </select>
+                        <div class="form-text">Si seleccionas un activo, las fallas críticas generarán <strong>tareas automáticas de parcheo</strong> en estado Pendiente.</div>
+                    </div>
+
+                    <div class="mb-4">
+                        <label class="form-label fw-semibold">Archivo de Código o Paquete <span class="text-danger">*</span></label>
+                        <input type="file" class="form-control" name="archivo_proyecto" accept=".zip,.py,.js,.json,.txt,.sql,.cs,.csproj" required>
+                        <div class="form-text">Formatos soportados: <code>.zip</code> (proyecto comprimido), <code>.cs</code>, <code>.csproj</code>, <code>requirements.txt</code>, <code>package.json</code>, <code>.py</code>, <code>.js</code>, <code>.sql</code>.</div>
+                    </div>
+
+                    <div class="alert alert-info border-0 small">
+                        <i class="fa-solid fa-shield-cat me-1"></i> <strong>Reglas activas (2026):</strong> SAST (C#, Python, JS, PHP, SQL) + SCA (NuGet, PyPI, NPM) + Detección de claves de IA (OpenAI, Gemini, Claude).
+                    </div>
+
+                    <button type="submit" class="btn btn-warning w-100 fw-bold py-2 shadow-sm">
+                        <i class="fa-solid fa-bolt me-1"></i> Analizar Proyecto y Calcular Riesgo
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Panel Explicativo y Estadísticas -->
+    <div class="col-lg-7">
+        <div class="card shadow-sm border-0 h-100">
+            <div class="card-header bg-white py-3">
+                <h6 class="m-0 fw-bold text-dark"><i class="fa-solid fa-circle-info me-2 text-primary"></i>¿Cómo funciona el motor de auditoría?</h6>
+            </div>
+            <div class="card-body">
+                <div class="row g-3 mb-3">
+                    <div class="col-sm-6">
+                        <div class="p-3 bg-light rounded border">
+                            <div class="fw-bold text-primary mb-1"><i class="fa-solid fa-file-code me-1"></i> SAST (Static Analysis)</div>
+                            <p class="small text-muted mb-0">Examina el código fuente C#, Python, JS o PHP identificando malas prácticas, inyecciones SQL y secretos expuestos sin necesidad de ejecución.</p>
+                        </div>
+                    </div>
+                    <div class="col-sm-6">
+                        <div class="p-3 bg-light rounded border">
+                            <div class="fw-bold text-warning mb-1"><i class="fa-solid fa-cubes-stacked me-1"></i> SCA (Software Composition)</div>
+                            <p class="small text-muted mb-0">Inspecciona manifiestos .csproj, requirements.txt y package.json contra matrices de vulnerabilidades CVE conocidas.</p>
+                        </div>
+                    </div>
+                </div>
+
+                <h6 class="fw-bold text-dark mt-4 mb-2"><i class="fa-solid fa-history me-1 text-secondary"></i>Historial de Auditorías Realizadas</h6>
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle small mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Fecha</th>
+                                <th>Proyecto</th>
+                                <th>Propietario</th>
+                                <th>Hallazgos</th>
+                                <th>Riesgo</th>
+                                <th>Acción</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for aud in auditorias %}
+                            <tr>
+                                <td class="text-muted">{{ aud.fecha_escaneo[:16] }}</td>
+                                <td>
+                                    <strong>{{ aud.nombre_proyecto }}</strong>
+                                    <div class="text-muted" style="font-size: 0.75rem;">{{ aud.nombre_archivo }}</div>
+                                </td>
+                                <td>
+                                    <span class="fw-semibold text-dark">{{ aud.auditor }}</span>
+                                    <div class="text-muted text-xs font-monospace">{{ aud.auditor_email }}</div>
+                                </td>
+                                <td>
+                                    <span class="badge bg-danger">{{ aud.criticas }}</span>
+                                    <span class="badge bg-warning text-dark">{{ aud.altas }}</span>
+                                    <span class="badge bg-info text-dark">{{ aud.medias }}</span>
+                                </td>
+                                <td>
+                                    <span class="fw-bold {% if aud.indice_riesgo > 60 %}text-danger{% elif aud.indice_riesgo > 30 %}text-warning{% else %}text-success{% endif %}">
+                                        {{ aud.indice_riesgo }}%
+                                    </span>
+                                </td>
+                                <td>
+                                    <a href="{{ url_for('auditoria_detalle', auditoria_id=aud.id) }}" class="btn btn-sm btn-outline-primary">
+                                        Ver Informe
+                                    </a>
+                                </td>
+                            </tr>
+                            {% else %}
+                            <tr>
+                                <td colspan="6" class="text-center py-3 text-muted">Aún no se han ejecutado auditorías. Sube un archivo en el panel izquierdo.</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

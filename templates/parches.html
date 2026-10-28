@@ -1,0 +1,167 @@
+{% extends "base.html" %}
+
+{% block title %}Gestión de Parches y Remediaciones{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4 pb-2 border-bottom">
+    <div>
+        <h2 class="h3 fw-bold text-dark mb-0">Ciclo de Vida de Parches y Remediaciones</h2>
+        <p class="text-muted small mb-0">Asignación, seguimiento de plazos (SLAs) y certificación de mitigaciones en servidores.</p>
+    </div>
+    <button class="btn btn-primary shadow-sm" data-bs-toggle="modal" data-bs-target="#modalNuevoParche">
+        <i class="fa-solid fa-plus-circle me-1"></i> Asignar Nueva Remediación
+    </button>
+</div>
+
+<!-- Tabla de Tareas de Remediación -->
+<div class="card shadow-sm border-0">
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th># ID</th>
+                        <th>Servidor / Activo</th>
+                        <th>Vulnerabilidad</th>
+                        <th>Severidad (CVSS)</th>
+                        <th>Asignado a</th>
+                        <th>Fecha Límite (SLA)</th>
+                        <th>Estado Actual</th>
+                        <th class="text-end">Actualizar Estado</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for p in parches %}
+                    <tr>
+                        <td class="fw-bold text-muted">#{{ p.id }}</td>
+                        <td>
+                            <div class="fw-bold text-dark">{{ p.activo_nombre }}</div>
+                            <span class="font-monospace text-muted small">{{ p.activo_ip }}</span>
+                        </td>
+                        <td>
+                            <div class="font-monospace fw-semibold">{{ p.cve_id }}</div>
+                            <small class="text-muted text-truncate d-inline-block" style="max-width: 280px;">{{ p.vuln_titulo }}</small>
+                        </td>
+                        <td>
+                            <span class="badge {% if p.cvss_score >= 9.0 %}bg-danger{% elif p.cvss_score >= 7.0 %}bg-warning text-dark{% elif p.cvss_score >= 4.0 %}bg-info text-dark{% else %}bg-secondary{% endif %}">
+                                {{ p.severidad }} ({{ p.cvss_score }})
+                            </span>
+                        </td>
+                        <td>
+                            <div class="small fw-semibold text-dark">{{ p.asignado_nombre or 'Sin Asignar' }}</div>
+                        </td>
+                        <td>
+                            <div class="small font-monospace {% if p.estado in ['Pendiente', 'En Proceso'] and p.fecha_limite < '2026-10-25' %}text-danger fw-bold{% else %}text-muted{% endif %}">
+                                <i class="fa-regular fa-calendar me-1"></i> {{ p.fecha_limite }}
+                            </div>
+                        </td>
+                        <td>
+                            <span class="badge {% if p.estado == 'Pendiente' %}bg-danger{% elif p.estado == 'En Proceso' %}bg-warning text-dark{% elif p.estado == 'Remediado' %}bg-success{% else %}bg-secondary{% endif %} fs-7">
+                                {{ p.estado }}
+                            </span>
+                            {% if p.fecha_remediacion %}
+                            <div class="text-muted small" style="font-size: 0.75rem;">Cerrado: {{ p.fecha_remediacion }}</div>
+                            {% endif %}
+                        </td>
+                        <td class="text-end">
+                            <button class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#modalActualizar{{ p.id }}">
+                                <i class="fa-solid fa-pen-to-square me-1"></i> Cambiar
+                            </button>
+                        </td>
+                    </tr>
+
+                    <!-- Modal Actualizar Estado -->
+                    <div class="modal fade" id="modalActualizar{{ p.id }}" tabindex="-1" aria-hidden="true">
+                        <div class="modal-dialog">
+                            <div class="modal-content border-0 shadow">
+                                <div class="modal-header bg-dark text-white">
+                                    <h5 class="modal-title fw-bold">Actualizar Parche #{{ p.id }}</h5>
+                                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                                </div>
+                                <form action="{{ url_for('actualizar_estado_parche', parche_id=p.id) }}" method="POST">
+                                    <div class="modal-body">
+                                        <div class="mb-3">
+                                            <label class="form-label fw-semibold">Estado de la Remediación</label>
+                                            <select class="form-select" name="estado">
+                                                <option value="Pendiente" {% if p.estado == 'Pendiente' %}selected{% endif %}>Pendiente</option>
+                                                <option value="En Proceso" {% if p.estado == 'En Proceso' %}selected{% endif %}>En Proceso</option>
+                                                <option value="Remediado" {% if p.estado == 'Remediado' %}selected{% endif %}>Remediado</option>
+                                                <option value="Mitigado" {% if p.estado == 'Mitigado' %}selected{% endif %}>Mitigado</option>
+                                            </select>
+                                        </div>
+                                        <div class="mb-3">
+                                            <label class="form-label fw-semibold">Bitácora / Notas Técnicas de Remediación</label>
+                                            <textarea class="form-control" name="notas_remediacion" rows="3" placeholder="Detalle de comandos ejecutados, parches aplicados o reinicios...">{{ p.notas_remediacion or '' }}</textarea>
+                                        </div>
+                                    </div>
+                                    <div class="modal-footer bg-light">
+                                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                                        <button type="submit" class="btn btn-primary fw-semibold">Guardar Cambios</button>
+                                    </div>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+                    {% else %}
+                    <tr>
+                        <td colspan="8" class="text-center py-4 text-muted">No existen parches asignados en este momento.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Nueva Asignación de Parche -->
+<div class="modal fade" id="modalNuevoParche" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content border-0 shadow">
+            <div class="modal-header bg-dark text-white">
+                <h5 class="modal-title fw-bold"><i class="fa-solid fa-wrench me-2 text-warning"></i>Asignar Tarea de Remediación</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form action="{{ url_for('parches') }}" method="POST">
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold">Servidor Afectado <span class="text-danger">*</span></label>
+                        <select class="form-select" name="activo_id" required>
+                            {% for a in activos %}
+                            <option value="{{ a.id }}">{{ a.nombre }} ({{ a.ip }})</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold">Vulnerabilidad a Remediar <span class="text-danger">*</span></label>
+                        <select class="form-select" name="vulnerabilidad_id" required>
+                            {% for v in vulnerabilidades %}
+                            <option value="{{ v.id }}">[{{ v.cve_id }}] {{ v.titulo }} (CVSS {{ v.cvss_score }})</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold">Técnico Asignado <span class="text-danger">*</span></label>
+                        <select class="form-select" name="asignado_a" required>
+                            {% for u in usuarios %}
+                            <option value="{{ u.id }}">{{ u.nombre_completo }} ({{ u.rol }})</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold">Fecha Límite de Atención (SLA) <span class="text-danger">*</span></label>
+                        <input type="date" class="form-control" name="fecha_limite" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold">Observaciones Preliminares</label>
+                        <textarea class="form-control" name="notas_remediacion" rows="2" placeholder="Instrucciones para la ventana de mantenimiento..."></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer bg-light">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-primary fw-semibold">Asignar Parche</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

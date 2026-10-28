@@ -1,0 +1,55 @@
+{% extends "base.html" %}
+
+{% block title %}Iniciar Sesión{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center align-items-center" style="min-height: 75vh;">
+    <div class="col-md-5 col-lg-4">
+        <div class="card shadow-lg border-0 rounded-3">
+            <div class="card-body p-4 p-sm-5">
+                <div class="text-center mb-4">
+                    <div class="bg-primary text-white p-3 rounded-circle d-inline-flex mb-3 shadow">
+                        <i class="fa-solid fa-shield-halved fs-2"></i>
+                    </div>
+                    <h3 class="fw-bold text-dark">VulnTracker</h3>
+                    <p class="text-muted small">Plataforma de Auditoría de Código y Gestión de Parches</p>
+                </div>
+
+                <form action="{{ url_for('login') }}" method="POST">
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold text-secondary">Usuario o Correo Electrónico</label>
+                        <div class="input-group">
+                            <span class="input-group-text bg-light"><i class="fa-solid fa-at text-muted"></i></span>
+                            <input type="text" class="form-control" name="username" placeholder="pablo@empresa.com o pablo" required autofocus>
+                        </div>
+                    </div>
+                    <div class="mb-4">
+                        <label class="form-label fw-semibold text-secondary">Contraseña</label>
+                        <div class="input-group">
+                            <span class="input-group-text bg-light"><i class="fa-solid fa-lock text-muted"></i></span>
+                            <input type="password" class="form-control" name="password" placeholder="••••••••" required>
+                        </div>
+                    </div>
+                    <button type="submit" class="btn btn-primary w-100 fw-bold py-2 shadow-sm mb-3">
+                        <i class="fa-solid fa-right-to-bracket me-1"></i> Acceder a la Consola
+                    </button>
+                </form>
+
+                <div class="text-center pb-3 mb-3 border-bottom">
+                    <span class="text-muted small">¿No tienes una cuenta aún? </span>
+                    <a href="{{ url_for('register') }}" class="fw-bold text-decoration-none text-success">Registrarse aquí</a>
+                </div>
+
+                <div class="text-center">
+                    <small class="text-muted d-block mb-1">Cuentas demo de prueba:</small>
+                    <div class="d-flex flex-wrap gap-1 justify-content-center">
+                        <span class="badge bg-light text-dark border">admin / admin123</span>
+                        <span class="badge bg-light text-dark border">pablo / pablo123</span>
+                        <span class="badge bg-light text-dark border">jose / jose123</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

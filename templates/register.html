@@ -1,0 +1,76 @@
+{% extends "base.html" %}
+
+{% block title %}Registro de Usuario{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center align-items-center" style="min-height: 75vh;">
+    <div class="col-md-6 col-lg-5">
+        <div class="card shadow-lg border-0 rounded-3">
+            <div class="card-body p-4 p-sm-5">
+                <div class="text-center mb-4">
+                    <div class="bg-success text-white p-3 rounded-circle d-inline-flex mb-3 shadow">
+                        <i class="fa-solid fa-user-plus fs-2"></i>
+                    </div>
+                    <h3 class="fw-bold text-dark">Registro de Usuario</h3>
+                    <p class="text-muted small">Crea tu cuenta individual para auditar tus proyectos con privacidad</p>
+                </div>
+
+                <form action="{{ url_for('register') }}" method="POST">
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold text-secondary">Nombre Completo</label>
+                        <div class="input-group">
+                            <span class="input-group-text bg-light"><i class="fa-solid fa-id-card text-muted"></i></span>
+                            <input type="text" class="form-control" name="nombre_completo" placeholder="Ej. Pablo Pérez" required autofocus>
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold text-secondary">Correo Electrónico</label>
+                        <div class="input-group">
+                            <span class="input-group-text bg-light"><i class="fa-solid fa-envelope text-muted"></i></span>
+                            <input type="email" class="form-control" name="email" placeholder="pablo@empresa.com" required>
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold text-secondary">Nombre de Usuario (Username)</label>
+                        <div class="input-group">
+                            <span class="input-group-text bg-light"><i class="fa-solid fa-user text-muted"></i></span>
+                            <input type="text" class="form-control" name="username" placeholder="pablo" required>
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold text-secondary">Rol en la Organización</label>
+                        <div class="input-group">
+                            <span class="input-group-text bg-light"><i class="fa-solid fa-user-shield text-muted"></i></span>
+                            <select class="form-select" name="rol" required>
+                                <option value="Desarrollador" selected>Desarrollador / Usuario</option>
+                                <option value="Técnico">Soporte Técnico / SecOps</option>
+                                <option value="Administrador">Administrador de Seguridad</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="mb-4">
+                        <label class="form-label fw-semibold text-secondary">Contraseña</label>
+                        <div class="input-group">
+                            <span class="input-group-text bg-light"><i class="fa-solid fa-lock text-muted"></i></span>
+                            <input type="password" class="form-control" name="password" placeholder="••••••••" required>
+                        </div>
+                    </div>
+
+                    <button type="submit" class="btn btn-success w-100 fw-bold py-2 shadow-sm mb-3">
+                        <i class="fa-solid fa-check-circle me-1"></i> Crear Cuenta e Ingresar
+                    </button>
+                </form>
+
+                <div class="text-center pt-3 border-top">
+                    <span class="text-muted small">¿Ya tienes una cuenta registrada? </span>
+                    <a href="{{ url_for('login') }}" class="fw-bold text-decoration-none text-primary">Iniciar Sesión</a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

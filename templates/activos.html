@@ -1,0 +1,134 @@
+{% extends "base.html" %}
+
+{% block title %}Inventario de Activos Tecnológicos{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4 pb-2 border-bottom">
+    <div>
+        <h2 class="h3 fw-bold text-dark mb-0">Inventario de Activos e Infraestructura</h2>
+        <p class="text-muted small mb-0">Gestión de servidores, estaciones y dispositivos de red bajo supervisión de seguridad.</p>
+    </div>
+    <button class="btn btn-primary shadow-sm" data-bs-toggle="modal" data-bs-target="#modalNuevoActivo">
+        <i class="fa-solid fa-plus-circle me-1"></i> Registrar Activo
+    </button>
+</div>
+
+<!-- Tabla de Activos -->
+<div class="card shadow-sm border-0">
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th>Identificador / Nombre</th>
+                        <th>Dirección IP</th>
+                        <th>Tipo y Sistema Operativo</th>
+                        <th>Criticidad</th>
+                        <th>Ubicación</th>
+                        <th>Estado</th>
+                        <th class="text-end">Acciones</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for a in activos %}
+                    <tr>
+                        <td>
+                            <div class="fw-bold text-dark">{{ a.nombre }}</div>
+                            <span class="badge bg-light text-secondary border">ID: #{{ a.id }}</span>
+                        </td>
+                        <td>
+                            <span class="font-monospace text-primary fw-semibold">{{ a.ip }}</span>
+                        </td>
+                        <td>
+                            <div>{{ a.tipo }}</div>
+                            <small class="text-muted">{{ a.sistema_operativo }}</small>
+                        </td>
+                        <td>
+                            <span class="badge {% if a.criticidad == 'Crítica' %}bg-danger{% elif a.criticidad == 'Alta' %}bg-warning text-dark{% elif a.criticidad == 'Media' %}bg-info text-dark{% else %}bg-secondary{% endif %}">
+                                {{ a.criticidad }}
+                            </span>
+                        </td>
+                        <td>
+                            <i class="fa-solid fa-location-dot text-muted me-1"></i> {{ a.ubicacion }}
+                        </td>
+                        <td>
+                            <span class="badge {% if a.estado == 'Operativo' %}bg-success{% elif a.estado == 'Mantenimiento' %}bg-warning text-dark{% else %}bg-danger{% endif %}">
+                                {{ a.estado }}
+                            </span>
+                        </td>
+                        <td class="text-end">
+                            <form action="{{ url_for('eliminar_activo', activo_id=a.id) }}" method="POST" class="d-inline" onsubmit="return confirm('¿Está seguro de eliminar este activo tecnológico?');">
+                                <button type="submit" class="btn btn-sm btn-outline-danger" title="Eliminar activo">
+                                    <i class="fa-solid fa-trash-can"></i>
+                                </button>
+                            </form>
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="7" class="text-center py-4 text-muted">No existen activos registrados en la infraestructura.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Registrar Activo -->
+<div class="modal fade" id="modalNuevoActivo" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content border-0 shadow">
+            <div class="modal-header bg-dark text-white">
+                <h5 class="modal-title fw-bold"><i class="fa-solid fa-server me-2 text-primary"></i>Registrar Activo Tecnológico</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form action="{{ url_for('activos') }}" method="POST">
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold">Nombre del Servidor o Equipo <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control" name="nombre" placeholder="Ej. SRV-WEB-PROD-02" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold">Dirección IP <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control font-monospace" name="ip" placeholder="192.168.1.50" required>
+                    </div>
+                    <div class="row g-2 mb-3">
+                        <div class="col-md-6">
+                            <label class="form-label fw-semibold">Tipo de Activo</label>
+                            <select class="form-select" name="tipo">
+                                <option value="Servidor Web">Servidor Web</option>
+                                <option value="Servidor Base de Datos">Servidor Base de Datos</option>
+                                <option value="Servidor de Aplicaciones">Servidor de Aplicaciones</option>
+                                <option value="Enrutador Perimetral">Enrutador Perimetral</option>
+                                <option value="Estación de Trabajo">Estación de Trabajo</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label fw-semibold">Criticidad</label>
+                            <select class="form-select" name="criticidad">
+                                <option value="Baja">Baja</option>
+                                <option value="Media">Media</option>
+                                <option value="Alta">Alta</option>
+                                <option value="Crítica">Crítica</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold">Sistema Operativo</label>
+                        <input type="text" class="form-control" name="sistema_operativo" placeholder="Ej. Ubuntu Server 22.04 LTS" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold">Ubicación Física o Lógica</label>
+                        <input type="text" class="form-control" name="ubicacion" placeholder="Ej. Centro de Cómputo Principal" required>
+                    </div>
+                </div>
+                <div class="modal-footer bg-light">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-primary fw-semibold">Guardar Activo</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
