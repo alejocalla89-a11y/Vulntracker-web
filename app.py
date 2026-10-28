@@ -149,14 +149,14 @@ def dashboard():
         """
         recientes = db.execute(query_recientes).fetchall()
 
-        auditorias_recientes = db.execute("""
-            SELECT a.id, a.nombre_proyecto, a.nombre_archivo, a.fecha_escaneo, 
-                   a.archivos_analizados, a.total_hallazgos, a.indice_riesgo, a.criticas, a.altas,
-                   act.nombre AS activo_nombre, u.nombre_completo AS auditor
-            FROM auditorias a
-            LEFT JOIN activos act ON a.activo_id = act.id
-            LEFT JOIN usuarios u ON a.usuario_id = u.id
-            ORDER BY a.id DESC LIMIT 5
+        auditorias_recientes = """
+            SELECT p.id, a.nombre AS activo, a.ip, v.cve\_id, v.severidad, v.cvss\_score, 
+                   p.estado, p.fecha\_limite, u.nombre\_completo AS asignado
+            FROM parches p
+            JOIN activos a ON p.activo\_id = a.id
+            JOIN vulnerabilidades v ON p.vulnerabilidad\_id = v.id
+            LEFT JOIN usuarios u ON p.asignado\_a = u.id
+            ORDER BY p.id DESC LIMIT 5
         """).fetchall()
     else:
         parches_pendientes = db.execute("SELECT COUNT(*) FROM parches WHERE asignado_a = ? AND estado IN ('Pendiente', 'En Proceso')", (user_id,)).fetchone()[0]
@@ -203,15 +203,15 @@ def dashboard():
         """
         recientes = db.execute(query\_recientes, (user\_id,)).fetchall()
 
-        auditorias_recientes = db.execute("""
-            SELECT a.id, a.nombre_proyecto, a.nombre_archivo, a.fecha_escaneo, 
-                   a.archivos_analizados, a.total_hallazgos, a.indice_riesgo, a.criticas, a.altas,
-                   act.nombre AS activo_nombre, u.nombre_completo AS auditor
-            FROM auditorias a
-            LEFT JOIN activos act ON a.activo_id = act.id
-            LEFT JOIN usuarios u ON a.usuario_id = u.id
-            WHERE a.usuario_id = ?
-            ORDER BY a.id DESC LIMIT 5
+        query_recientes = """
+            SELECT p.id, a.nombre AS activo, a.ip, v.cve\_id, v.severidad, v.cvss\_score,
+                   p.estado, p.fecha\_limite, u.nombre\_completo AS asignado
+            FROM parches p
+            JOIN activos a ON p.activo\_id = a.id
+            JOIN vulnerabilidades v ON p.vulnerabilidad\_id = v.id
+            LEFT JOIN usuarios u ON p.asignado\_a = u.id
+            WHERE p.asignado_a = ?
+            ORDER BY p.id DESC LIMIT 5
         """, (user_id,)).fetchall()
 
     indice_riesgo = min(100, int((suma_riesgo / 35.0) * 100)) if suma_riesgo > 0 else 0
