@@ -31,6 +31,7 @@ class DBWrapper:
             return sql
         s = sql.replace('?', '%s')
         s = re.sub(r'INTEGER\s+PRIMARY\s+KEY\s+AUTOINCREMENT', 'SERIAL PRIMARY KEY', s, flags=re.IGNORECASE)
+        s = re.sub(r'DATETIME', 'TIMESTAMP', s, flags=re.IGNORECASE)
         s = re.sub(r'INSERT\s+OR\s+IGNORE\s+INTO\s+(\w+)\s*\(([^)]+)\)\s*VALUES\s*\(([^)]+)\)', 
                    r'INSERT INTO \1 (\2) VALUES (\3) ON CONFLICT DO NOTHING', s, flags=re.IGNORECASE)
         return s
@@ -73,6 +74,17 @@ def get_db():
             conn = sqlite3.connect(DB_FILE)
             conn.row_factory = sqlite3.Row
             g.db = DBWrapper(conn, is_pg=False)
+        try:
+            cur = g.db.execute("SELECT 1 FROM usuarios LIMIT 1")
+            cur.fetchone()
+        except Exception:
+            if g.db.is_pg:
+                try:
+                    g.db.conn.rollback()
+                except Exception:
+                    pass
+            from init_db import init_database
+            init_database()
     return g.db
 
 @app.teardown_appcontext
