@@ -31,7 +31,6 @@ class DBWrapper:
             return sql
         s = sql.replace('?', '%s')
         s = re.sub(r'INTEGER\s+PRIMARY\s+KEY\s+AUTOINCREMENT', 'SERIAL PRIMARY KEY', s, flags=re.IGNORECASE)
-        s = re.sub(r'DATETIME', 'TIMESTAMP', s, flags=re.IGNORECASE)
         s = re.sub(r'INSERT\s+OR\s+IGNORE\s+INTO\s+(\w+)\s*\(([^)]+)\)\s*VALUES\s*\(([^)]+)\)', 
                    r'INSERT INTO \1 (\2) VALUES (\3) ON CONFLICT DO NOTHING', s, flags=re.IGNORECASE)
         return s
@@ -74,17 +73,6 @@ def get_db():
             conn = sqlite3.connect(DB_FILE)
             conn.row_factory = sqlite3.Row
             g.db = DBWrapper(conn, is_pg=False)
-        try:
-            cur = g.db.execute("SELECT 1 FROM usuarios LIMIT 1")
-            cur.fetchone()
-        except Exception:
-            if g.db.is_pg:
-                try:
-                    g.db.conn.rollback()
-                except Exception:
-                    pass
-            from init_db import init_database
-            init_database()
     return g.db
 
 @app.teardown_appcontext
@@ -603,6 +591,53 @@ def actualizar_estado_parche(parche_id):
     db.commit()
     flash(f'Estado del parche #{parche_id} actualizado a {nuevo_estado}.', 'success')
     return redirect(url_for('parches'))
+
+
+
+@app.route('/usuarios')
+@login_required
+def usuarios():
+    if session.get('rol') != 'Administrador':
+        flash('Acceso denegado: El módulo de gestión de usuarios es exclusivo para el Administrador.', 'warning')
+        return redirect(url_for('dashboard'))
+        
+    db = get_db()
+    usuarios_list = db.execute('SELECT id, username, email, nombre_completo, rol FROM usuarios ORDER BY id ASC').fetchall()
+    return render_template('usuarios.html', usuarios=usuarios_list)
+
+@app.route('/usuarios/cambiar_rol/<int:user_id>', methods=['POST'])
+@login_required
+def cambiar_rol_usuario(user_id):
+    if session.get('rol') != 'Administrador':
+        flash('Acceso denegado.', 'danger')
+        return redirect(url_for('dashboard'))
+        
+    nuevo_rol = request.form.get('rol', '').strip()
+    if nuevo_rol in ['Administrador', 'Técnico', 'Desarrollador']:
+        db = get_db()
+        db.execute('UPDATE usuarios SET rol = ? WHERE id = ?', (nuevo_rol, user_id))
+        db.commit()
+        flash(f'Rol del usuario #{user_id} actualizado a {nuevo_rol}.', 'success')
+    return redirect(url_for('usuarios'))
+
+@app.route('/usuarios/reset_password/<int:user_id>', methods=['POST'])
+@login_required
+def reset_password_usuario(user_id):
+    if session.get('rol') != 'Administrador':
+        flash('Acceso denegado.', 'danger')
+        return redirect(url_for('dashboard'))
+        
+    nueva_clave = request.form.get('nueva_password', '').strip()
+    if nueva_clave:
+        password_hash = generate_password_hash(nueva_clave)
+        db = get_db()
+        db.execute('UPDATE usuarios SET password_hash = ? WHERE id = ?', (password_hash, user_id))
+        db.commit()
+        flash(f'Contraseña restablecida exitosamente para el usuario #{user_id}.', 'success')
+    else:
+        flash('La nueva contraseña no puede estar vacía.', 'warning')
+    return redirect(url_for('usuarios'))
+
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))

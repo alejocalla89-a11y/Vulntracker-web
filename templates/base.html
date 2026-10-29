@@ -55,6 +55,13 @@
                             <i class="fa-solid fa-wrench me-1"></i> Gestión de Parches
                         </a>
                     </li>
+                    {% if session.get('rol') == 'Administrador' %}
+                    <li class="nav-item">
+                        <a class="nav-link {% if request.endpoint == 'usuarios' %}active fw-bold text-info{% endif %}" href="{{ url_for('usuarios') }}">
+                            <i class="fa-solid fa-users-gear me-1"></i> Gestión de Usuarios
+                        </a>
+                    </li>
+                    {% endif %}
                 </ul>
                 <div class="d-flex align-items-center text-white">
                     <div class="me-3 text-end d-none d-sm-block">
