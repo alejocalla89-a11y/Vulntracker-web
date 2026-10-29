@@ -2,8 +2,9 @@ import sqlite3
 import os
 import json
 import zipfile
+import re
 from functools import wraps
-from datetime import datetime
+from datetime import datetime, timedelta
 from flask import Flask, render_template, request, redirect, url_for, session, flash, g, jsonify, send_file
 from werkzeug.security import check_password_hash, generate_password_hash
 from werkzeug.utils import secure_filename
@@ -18,18 +19,60 @@ os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 app.config['MAX_CONTENT_LENGTH'] = 32 * 1024 * 1024  # 32 MB límite
 
-# Inicializar la base de datos si no existe al arrancar
-if not os.path.exists(DB_FILE):
-    try:
-        from init_db import init_database
-        init_database()
-    except Exception as e:
-        print(f"Error inicializando la BD: {e}")
+DATABASE_URL = os.environ.get('DATABASE_URL')
+
+class DBWrapper:
+    def __init__(self, conn, is_pg):
+        self.conn = conn
+        self.is_pg = is_pg
+
+    def _convert_sql(self, sql):
+        if not self.is_pg:
+            return sql
+        s = sql.replace('?', '%s')
+        s = re.sub(r'INTEGER\s+PRIMARY\s+KEY\s+AUTOINCREMENT', 'SERIAL PRIMARY KEY', s, flags=re.IGNORECASE)
+        s = re.sub(r'INSERT\s+OR\s+IGNORE\s+INTO\s+(\w+)\s*\(([^)]+)\)\s*VALUES\s*\(([^)]+)\)', 
+                   r'INSERT INTO \1 (\2) VALUES (\3) ON CONFLICT DO NOTHING', s, flags=re.IGNORECASE)
+        return s
+
+    def execute(self, sql, params=()):
+        if self.is_pg:
+            import psycopg2.extras
+            cursor = self.conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
+            converted_sql = self._convert_sql(sql)
+            cursor.execute(converted_sql, params)
+            return cursor
+        else:
+            cursor = self.conn.cursor()
+            cursor.execute(sql, params)
+            return cursor
+
+    def commit(self):
+        self.conn.commit()
+
+    def cursor(self):
+        if self.is_pg:
+            import psycopg2.extras
+            return self.conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
+        else:
+            return self.conn.cursor()
+
+    def close(self):
+        self.conn.close()
 
 def get_db():
     if 'db' not in g:
-        g.db = sqlite3.connect(DB_FILE)
-        g.db.row_factory = sqlite3.Row
+        if DATABASE_URL:
+            import psycopg2
+            url = DATABASE_URL
+            if url.startswith("postgres://"):
+                url = url.replace("postgres://", "postgresql://", 1)
+            conn = psycopg2.connect(url)
+            g.db = DBWrapper(conn, is_pg=True)
+        else:
+            conn = sqlite3.connect(DB_FILE)
+            conn.row_factory = sqlite3.Row
+            g.db = DBWrapper(conn, is_pg=False)
     return g.db
 
 @app.teardown_appcontext
@@ -37,6 +80,12 @@ def close_db(error):
     db = g.pop('db', None)
     if db is not None:
         db.close()
+
+try:
+    from init_db import init_database
+    init_database()
+except Exception as e:
+    print(f"Error inicializando la BD: {e}")
 
 def login_required(f):
     @wraps(f)
@@ -49,6 +98,9 @@ def login_required(f):
 
 @app.route('/login', methods=['GET', 'POST'])
 def login():
+    if 'user_id' in session:
+        return redirect(url_for('dashboard'))
+        
     if request.method == 'POST':
         login_input = request.form['username'].strip().lower()
         password = request.form['password'].strip()
@@ -74,6 +126,9 @@ def login():
 
 @app.route('/register', methods=['GET', 'POST'])
 def register():
+    if 'user_id' in session:
+        return redirect(url_for('dashboard'))
+        
     if request.method == 'POST':
         nombre_completo = request.form['nombre_completo'].strip()
         email = request.form['email'].strip().lower()
@@ -285,22 +340,36 @@ def escanear_proyecto():
     resultado = scan_uploaded_content(file_path, orig_name)
     
     db = get_db()
-    cursor = db.cursor()
-    cursor.execute("""
-        INSERT INTO auditorias (
-            nombre_proyecto, nombre_archivo, fecha_escaneo, archivos_analizados,
-            total_hallazgos, criticas, altas, medias, bajas, indice_riesgo, usuario_id, activo_id
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    """, (
-        nombre_proyecto, orig_name, datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
-        resultado['archivos_analizados'], resultado['total_hallazgos'],
-        resultado['criticas'], resultado['altas'], resultado['medias'], resultado['bajas'],
-        resultado['riesgo_estimado'], session['user_id'], activo_id
-    ))
-    auditoria_id = cursor.lastrowid
     
+    if db.is_pg:
+        cursor = db.execute("""
+            INSERT INTO auditorias (
+                nombre_proyecto, nombre_archivo, fecha_escaneo, archivos_analizados,
+                total_hallazgos, criticas, altas, medias, bajas, indice_riesgo, usuario_id, activo_id
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING id
+        """, (
+            nombre_proyecto, orig_name, datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
+            resultado['archivos_analizados'], resultado['total_hallazgos'],
+            resultado['criticas'], resultado['altas'], resultado['medias'], resultado['bajas'],
+            resultado['riesgo_estimado'], session['user_id'], activo_id
+        ))
+        auditoria_id = cursor.fetchone()[0]
+    else:
+        cursor = db.execute("""
+            INSERT INTO auditorias (
+                nombre_proyecto, nombre_archivo, fecha_escaneo, archivos_analizados,
+                total_hallazgos, criticas, altas, medias, bajas, indice_riesgo, usuario_id, activo_id
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """, (
+            nombre_proyecto, orig_name, datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
+            resultado['archivos_analizados'], resultado['total_hallazgos'],
+            resultado['criticas'], resultado['altas'], resultado['medias'], resultado['bajas'],
+            resultado['riesgo_estimado'], session['user_id'], activo_id
+        ))
+        auditoria_id = cursor.lastrowid
+
     for h in resultado['hallazgos']:
-        cursor.execute("""
+        db.execute("""
             INSERT INTO auditoria_hallazgos (
                 auditoria_id, tipo, archivo, linea, codigo_fragmento, cve_id,
                 titulo, cvss_score, severidad, descripcion, solucion
@@ -310,25 +379,26 @@ def escanear_proyecto():
             h['cve_id'], h['titulo'], h['cvss_score'], h['severidad'], h['descripcion'], h['solucion']
         ))
         
-        cursor.execute("""
+        db.execute("""
             INSERT OR IGNORE INTO vulnerabilidades (cve_id, titulo, descripcion, cvss_score, severidad, solucion_sugerida)
             VALUES (?, ?, ?, ?, ?, ?)
         """, (h['cve_id'], h['titulo'], h['descripcion'], h['cvss_score'], h['severidad'], h['solucion']))
         
         if activo_id:
-            vuln_row = cursor.execute("SELECT id FROM vulnerabilidades WHERE cve_id = ?", (h['cve_id'],)).fetchone()
+            vuln_row = db.execute("SELECT id FROM vulnerabilidades WHERE cve_id = ?", (h['cve_id'],)).fetchone()
             if vuln_row:
                 vuln_db_id = vuln_row[0]
-                existe_parche = cursor.execute("""
+                existe_parche = db.execute("""
                     SELECT id FROM parches 
                     WHERE activo_id = ? AND vulnerabilidad_id = ? AND estado IN ('Pendiente', 'En Proceso')
                 """, (activo_id, vuln_db_id)).fetchone()
                 if not existe_parche:
                     fecha_det = datetime.now().strftime('%Y-%m-%d')
-                    cursor.execute("""
+                    fecha_lim = (datetime.now() + timedelta(days=7)).strftime('%Y-%m-%d')
+                    db.execute("""
                         INSERT INTO parches (activo_id, vulnerabilidad_id, asignado_a, estado, fecha_deteccion, fecha_limite, notas_remediacion)
-                        VALUES (?, ?, ?, 'Pendiente', ?, date('now', '+7 days'), ?)
-                    """, (activo_id, vuln_db_id, session['user_id'], fecha_det, f"Detectado en proyecto '{nombre_proyecto}' de {session.get('nombre')}"))
+                        VALUES (?, ?, ?, 'Pendiente', ?, ?, ?)
+                    """, (activo_id, vuln_db_id, session['user_id'], fecha_det, fecha_lim, f"Detectado en proyecto '{nombre_proyecto}' de {session.get('nombre')}"))
 
     db.commit()
     flash(f'Análisis completado para {session.get("nombre")}: {resultado["total_hallazgos"]} hallazgos identificados. Índice de Riesgo: {resultado["riesgo_estimado"]}%', 'success')
@@ -424,8 +494,8 @@ def vulnerabilidades():
             """, (cve_id, titulo, descripcion, cvss_score, severidad, solucion))
             db.commit()
             flash(f'Vulnerabilidad {cve_id} registrada con severidad {severidad}.', 'success')
-        except sqlite3.IntegrityError:
-            flash(f'El identificador {cve_id} ya se encuentra registrado en el catálogo.', 'danger')
+        except Exception as e:
+            flash(f'No se pudo registrar {cve_id} (posiblemente duplicada).', 'danger')
             
         return redirect(url_for('vulnerabilidades'))
         
