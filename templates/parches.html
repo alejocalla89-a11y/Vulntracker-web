@@ -51,7 +51,7 @@
                             <div class="small fw-semibold text-dark">{{ p.asignado_nombre or 'Sin Asignar' }}</div>
                         </td>
                         <td>
-                            <div class="small font-monospace {% if p.estado in ['Pendiente', 'En Proceso'] and p.fecha_limite < '2026-10-25' %}text-danger fw-bold{% else %}text-muted{% endif %}">
+                            <div class="small font-monospace {% if p.estado in ['Pendiente', 'En Proceso'] and (p.fecha_limite|string) < '2026-10-25' %}text-danger fw-bold{% else %}text-muted{% endif %}">
                                 <i class="fa-regular fa-calendar me-1"></i> {{ p.fecha_limite }}
                             </div>
                         </td>

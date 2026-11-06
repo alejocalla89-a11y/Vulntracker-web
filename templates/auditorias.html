@@ -99,7 +99,7 @@
                         <tbody>
                             {% for aud in auditorias %}
                             <tr>
-                                <td class="text-muted">{{ aud.fecha_escaneo[:16] }}</td>
+                                <td class="text-muted">{{ (aud.fecha_escaneo|string)[:16] }}</td>
                                 <td>
                                     <strong>{{ aud.nombre_proyecto }}</strong>
                                     <div class="text-muted" style="font-size: 0.75rem;">{{ aud.nombre_archivo }}</div>

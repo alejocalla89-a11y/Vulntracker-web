@@ -168,7 +168,7 @@
                                         {{ a.indice_riesgo }}%
                                     </span>
                                 </td>
-                                <td class="text-muted small">{{ a.fecha_escaneo[:10] }}</td>
+                                <td class="text-muted small">{{ (a.fecha_escaneo|string)[:10] }}</td>
                                 <td class="text-end">
                                     <a href="{{ url_for('auditoria_detalle', auditoria_id=a.id) }}" class="btn btn-sm btn-light border">
                                         <i class="fa-solid fa-arrow-right"></i>
