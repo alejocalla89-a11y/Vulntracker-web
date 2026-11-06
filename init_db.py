@@ -79,7 +79,7 @@ def init_database():
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         nombre_proyecto TEXT NOT NULL,
         nombre_archivo TEXT NOT NULL,
-        fecha_escaneo TIMESTAMP NOT NULL,
+        fecha_escaneo DATETIME NOT NULL,
         archivos_analizados INTEGER NOT NULL,
         total_hallazgos INTEGER NOT NULL,
         criticas INTEGER NOT NULL,

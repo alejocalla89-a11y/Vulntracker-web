@@ -30,6 +30,7 @@ class DBWrapper:
         if not self.is_pg:
             return sql
         s = sql.replace('?', '%s')
+        s = s.replace('DATETIME', 'TIMESTAMP')
         s = re.sub(r'INTEGER\s+PRIMARY\s+KEY\s+AUTOINCREMENT', 'SERIAL PRIMARY KEY', s, flags=re.IGNORECASE)
         s = re.sub(r'INSERT\s+OR\s+IGNORE\s+INTO\s+(\w+)\s*\(([^)]+)\)\s*VALUES\s*\(([^)]+)\)', 
                    r'INSERT INTO \1 (\2) VALUES (\3) ON CONFLICT DO NOTHING', s, flags=re.IGNORECASE)
@@ -38,9 +39,21 @@ class DBWrapper:
     def execute(self, sql, params=()):
         if self.is_pg:
             import psycopg2.extras
+            if hasattr(self.conn, 'get_transaction_status') and self.conn.get_transaction_status() == 3:
+                try:
+                    self.conn.rollback()
+                except Exception:
+                    pass
             cursor = self.conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
             converted_sql = self._convert_sql(sql)
-            cursor.execute(converted_sql, params)
+            try:
+                cursor.execute(converted_sql, params)
+            except Exception as e:
+                try:
+                    self.conn.rollback()
+                except Exception:
+                    pass
+                raise e
             return cursor
         else:
             cursor = self.conn.cursor()
@@ -48,17 +61,33 @@ class DBWrapper:
             return cursor
 
     def commit(self):
-        self.conn.commit()
+        try:
+            self.conn.commit()
+        except Exception as e:
+            if self.is_pg:
+                try:
+                    self.conn.rollback()
+                except Exception:
+                    pass
+            raise e
 
     def cursor(self):
         if self.is_pg:
             import psycopg2.extras
+            if hasattr(self.conn, 'get_transaction_status') and self.conn.get_transaction_status() == 3:
+                try:
+                    self.conn.rollback()
+                except Exception:
+                    pass
             return self.conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
         else:
             return self.conn.cursor()
 
     def close(self):
-        self.conn.close()
+        try:
+            self.conn.close()
+        except Exception:
+            pass
 
 def get_db():
     if 'db' not in g:
@@ -69,6 +98,15 @@ def get_db():
                 url = url.replace("postgres://", "postgresql://", 1)
             conn = psycopg2.connect(url)
             g.db = DBWrapper(conn, is_pg=True)
+            try:
+                g.db.execute("SELECT 1 FROM usuarios LIMIT 1")
+            except Exception:
+                try:
+                    g.db.conn.rollback()
+                    from init_db import init_database
+                    init_database()
+                except Exception as e:
+                    print(f"Error auto-healing DB: {e}")
         else:
             conn = sqlite3.connect(DB_FILE)
             conn.row_factory = sqlite3.Row
@@ -79,7 +117,15 @@ def get_db():
 def close_db(error):
     db = g.pop('db', None)
     if db is not None:
-        db.close()
+        if error and getattr(db, 'is_pg', False):
+            try:
+                db.conn.rollback()
+            except Exception:
+                pass
+        try:
+            db.close()
+        except Exception:
+            pass
 
 try:
     from init_db import init_database
