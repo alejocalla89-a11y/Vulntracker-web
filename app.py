@@ -91,26 +91,34 @@ class DBWrapper:
 
 def get_db():
     if 'db' not in g:
+        use_pg = False
         if DATABASE_URL:
-            import psycopg2
-            url = DATABASE_URL
-            if url.startswith("postgres://"):
-                url = url.replace("postgres://", "postgresql://", 1)
-            conn = psycopg2.connect(url)
-            g.db = DBWrapper(conn, is_pg=True)
             try:
-                g.db.execute("SELECT 1 FROM usuarios LIMIT 1")
-            except Exception:
+                import psycopg2
+                url = DATABASE_URL
+                if url.startswith("postgres://"):
+                    url = url.replace("postgres://", "postgresql://", 1)
+                conn = psycopg2.connect(url, connect_timeout=5)
+                g.db = DBWrapper(conn, is_pg=True)
+                use_pg = True
                 try:
-                    g.db.conn.rollback()
-                    from init_db import init_database
-                    init_database()
-                except Exception as e:
-                    print(f"Error auto-healing DB: {e}")
-        else:
+                    g.db.execute("SELECT 1 FROM usuarios LIMIT 1")
+                except Exception:
+                    try:
+                        g.db.conn.rollback()
+                        from init_db import init_database
+                        init_database()
+                    except Exception as e:
+                        print(f"Error auto-healing DB: {e}")
+            except Exception as e:
+                print(f"Falló la conexión a PostgreSQL ({e}), conmutando automáticamente a respaldo SQLite.")
+                use_pg = False
+        
+        if not use_pg:
             conn = sqlite3.connect(DB_FILE)
             conn.row_factory = sqlite3.Row
             g.db = DBWrapper(conn, is_pg=False)
+            
     return g.db
 
 @app.teardown_appcontext

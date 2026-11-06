@@ -8,15 +8,17 @@ DB_FILE = os.path.join(os.path.dirname(__file__), 'vulntracker.db')
 
 def get_init_db():
     if DATABASE_URL:
-        import psycopg2
-        url = DATABASE_URL
-        if url.startswith("postgres://"):
-            url = url.replace("postgres://", "postgresql://", 1)
-        conn = psycopg2.connect(url)
-        return conn, True
-    else:
-        conn = sqlite3.connect(DB_FILE)
-        return conn, False
+        try:
+            import psycopg2
+            url = DATABASE_URL
+            if url.startswith("postgres://"):
+                url = url.replace("postgres://", "postgresql://", 1)
+            conn = psycopg2.connect(url, connect_timeout=5)
+            return conn, True
+        except Exception as e:
+            print(f"Error conectando a PostgreSQL en init_db: {e}. Usando SQLite.")
+    conn = sqlite3.connect(DB_FILE)
+    return conn, False
 
 def convert_sql(sql, is_pg):
     if not is_pg:
